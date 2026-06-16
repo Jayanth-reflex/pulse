@@ -136,3 +136,16 @@ body {
   position: relative;
   width: 100%;
 }
+
+/* Scroll-cue droplet falling down a hairline */
+@keyframes drip {
+  0% {
+    transform: translateY(-100%);
+  }
+  55% {
+    transform: translateY(150%);
+  }
+  100% {
+    transform: translateY(150%);
+  }
+}
