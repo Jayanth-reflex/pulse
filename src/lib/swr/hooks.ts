@@ -5,6 +5,7 @@ import {
   fetchCovidGlobal,
   fetchCovidCountries,
   fetchCovidHistory,
+  fetchCountryHistory,
   fetchVaccineHistory,
 } from "../sources/diseaseSh";
 import { fetchOwid, type OwidSpec } from "../sources/owid";
@@ -30,6 +31,12 @@ export const useCovidHistory = (days = 200) =>
 
 export const useVaccineHistory = (days = 400) =>
   useSWR(["disease.sh:vaccine", days], () => fetchVaccineHistory(days));
+
+/** Lazy per-country history — only fetches when an iso3 is provided (hover). */
+export const useCountryHistory = (iso3: string | null) =>
+  useSWR(iso3 ? ["disease.sh:country", iso3] : null, () =>
+    fetchCountryHistory(iso3 as string),
+  );
 
 export const useOwid = (spec: OwidSpec) =>
   useSWR(["owid", spec.slug], () => fetchOwid(spec));

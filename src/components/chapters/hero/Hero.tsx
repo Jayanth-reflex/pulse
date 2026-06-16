@@ -47,7 +47,7 @@ export function Hero() {
   }, [reducedMotion]);
 
   return (
-    <section className="chapter relative h-[100svh] overflow-hidden">
+    <section className="chapter relative h-screen min-h-[600px] overflow-hidden">
       <GardenCanvas momentum={momentum} palette={PALETTE} />
 
       {/* Legibility scrim — soft radial darken behind the copy. */}

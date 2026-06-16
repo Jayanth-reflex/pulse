@@ -138,6 +138,29 @@ export async function fetchCovidHistory(days = 200): Promise<CovidHistory> {
   };
 }
 
+/** Per-country smoothed daily new-case series (for the globe hover sprig). */
+export async function fetchCountryHistory(
+  iso3: string,
+  days = 120,
+): Promise<SeriesPoint[]> {
+  const r = await getJSON<{ timeline?: { cases?: Record<string, number> } }>(
+    `${BASE}/historical/${iso3}?lastdays=${days}`,
+  );
+  const cases = r.timeline?.cases;
+  if (!cases) return [];
+  const cum = mapToSeries(cases);
+  const daily = cum.map((p, i) => ({
+    date: p.date,
+    value: i === 0 ? 0 : Math.max(0, cum[i].value - cum[i - 1].value),
+  }));
+  // 7-day moving average.
+  return daily.map((p, i) => {
+    const win = daily.slice(Math.max(0, i - 6), i + 1);
+    const avg = win.reduce((s, q) => s + q.value, 0) / win.length;
+    return { date: p.date, value: Math.round(avg) };
+  });
+}
+
 /** Cumulative global vaccine doses over time (runs more recent than cases). */
 export async function fetchVaccineHistory(days = 400): Promise<SeriesPoint[]> {
   const r = await getJSON<Record<string, number>>(
