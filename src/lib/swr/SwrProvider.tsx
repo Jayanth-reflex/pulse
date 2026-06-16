@@ -10,8 +10,10 @@ const CACHE_KEY = "pulse-swr-v1";
  * On boot the cache hydrates from the last session (instant stale numbers),
  * then SWR revalidates in the background and the figures settle to fresh.
  */
-function localStorageProvider(): Map<string, unknown> {
-  const map = new Map<string, unknown>();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function localStorageProvider(): Map<string, any> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const map = new Map<string, any>();
   if (typeof window === "undefined") return map;
 
   try {

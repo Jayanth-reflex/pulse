@@ -7,7 +7,14 @@ import {
 } from "@react-three/fiber";
 import { OrbitControls, Html } from "@react-three/drei";
 import * as THREE from "three";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import useSWR from "swr";
 import type { Topology } from "topojson-specification";
 import { buildBorderPositions, latLngToVector3 } from "@/lib/geo/sphere";
@@ -187,7 +194,11 @@ function Sprig({
     <Html
       position={out}
       center
-      occlude={occludeRef.current ? [occludeRef] : undefined}
+      occlude={
+        occludeRef.current
+          ? [occludeRef as unknown as RefObject<THREE.Object3D>]
+          : undefined
+      }
       zIndexRange={[30, 0]}
       style={{ pointerEvents: "none" }}
     >

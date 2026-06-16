@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { mesh } from "topojson-client";
-import type { Topology } from "topojson-specification";
+import type { Topology, GeometryObject } from "topojson-specification";
 
 /** Map (lat, lon) in degrees onto a sphere of the given radius. */
 export function latLngToVector3(
@@ -25,7 +25,10 @@ export function buildBorderPositions(
   topology: Topology,
   radius: number,
 ): Float32Array {
-  const ml = mesh(topology, topology.objects.countries);
+  const ml = mesh(
+    topology,
+    topology.objects.countries as unknown as GeometryObject,
+  );
   const positions: number[] = [];
 
   for (const line of ml.coordinates) {
