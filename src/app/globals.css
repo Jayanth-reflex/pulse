@@ -1,26 +1,138 @@
 @import "tailwindcss";
 
+/* ============================================================
+   PULSE · Twilight Conservatory design tokens
+   A nocturnal glasshouse — data glowing in the dark.
+   See DESIGN.md for the rationale behind every value.
+   ============================================================ */
+
+@theme {
+  /* — Surfaces (deep botanical twilight) — */
+  --color-abyss: #0a120e;
+  --color-forest: #0f1d17;
+  --color-surface: #15261d;
+  --color-surface-2: #1c3328;
+  --color-line: #2a4034;
+
+  /* — Ink (mist on glass) — */
+  --color-mist: #e9efe7;
+  --color-sage: #a9b8ac;
+  --color-faint: #6e8175;
+
+  /* — Luminous category accents (mapped to disease families) — */
+  --color-jade: #5bd6a6; /* respiratory */
+  --color-amber: #e8b24c; /* vaccine-preventable */
+  --color-orchid: #e0719e; /* vector-borne */
+  --color-sky: #6fb6e8; /* enteric / waterborne */
+  --color-ember: #e8745c; /* hemorrhagic / emerging */
+  --color-lilac: #b79be0; /* chronic / noncommunicable */
+
+  /* — Type families (wired up in layout.tsx via next/font) — */
+  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+
+  /* — Editorial type scale (fluid, clamp-based) — */
+  --text-hero: clamp(2.75rem, 8vw, 7rem);
+  --text-display: clamp(2rem, 5vw, 4rem);
+  --text-title: clamp(1.5rem, 3vw, 2.5rem);
+
+  /* — Motion — */
+  --ease-organic: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-bloom: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 240ms;
+  --dur-med: 600ms;
+  --dur-slow: 1200ms;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --measure: 38rem; /* readable line length for editorial copy */
+  color-scheme: dark;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+* {
+  border-color: var(--color-line);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background: var(--color-abyss);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Lenis owns scroll; the native scrollbar stays out of the way. */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-abyss);
+  color: var(--color-mist);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv01";
+  overflow-x: hidden;
+}
+
+/* Editorial display defaults */
+.font-display {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  letter-spacing: -0.02em;
+}
+
+/* Figures read as instruments — aligned, tabular. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Soft luminous text used for live numbers */
+.glow-jade {
+  color: var(--color-jade);
+  text-shadow: 0 0 24px color-mix(in oklab, var(--color-jade) 40%, transparent);
+}
+
+/* Thin botanical hairline */
+.hairline {
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--color-line) 18%,
+    var(--color-line) 82%,
+    transparent
+  );
+}
+
+/* Focus ring — keyboard-visible, calm */
+:focus-visible {
+  outline: 2px solid var(--color-jade);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--color-jade) 30%, transparent);
+  color: var(--color-mist);
+}
+
+/* Reduced motion: kill transitions/animations, keep everything legible. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Utility: stack chapters at full viewport rhythm */
+.chapter {
+  position: relative;
+  width: 100%;
 }
