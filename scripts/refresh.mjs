@@ -89,45 +89,46 @@ async function pool(items, worker, concurrency = 6) {
 }
 
 // ── WHO GHO ────────────────────────────────────────────────────────────────
-// Aggregate both-sexes value per (place, year): prefer the row whose every
-// present Dim is null or SEX_BTSX; else mean of male+female.
+// Both-sexes value per (place, year). Key only on the SEX dimension (whichever
+// DimN is type SEX); average over any other dimensions (e.g. age groups) so
+// indicators like obesity/diabetes — which carry an AGEGROUP dim — aren't lost.
 function whoBothSexes(rows) {
-  const isAgg = (r) =>
-    [r.Dim1, r.Dim2, r.Dim3].every((d) => d == null || d === "" || d === "SEX_BTSX");
-  const isSexSplit = (r) =>
-    [r.Dim1, r.Dim2, r.Dim3].some((d) => d === "SEX_MLE" || d === "SEX_FMLE") &&
-    [r.Dim1, r.Dim2, r.Dim3].every(
-      (d) => d == null || d === "" || d === "SEX_MLE" || d === "SEX_FMLE",
-    );
+  const sexOf = (r) => {
+    if (r.Dim1Type === "SEX") return r.Dim1;
+    if (r.Dim2Type === "SEX") return r.Dim2;
+    if (r.Dim3Type === "SEX") return r.Dim3;
+    return null;
+  };
 
-  const agg = new Map(); // place -> year -> value
-  const split = new Map(); // place -> year -> {sum,n}
+  const both = new Map(); // place -> year -> {sum,n}
+  const split = new Map(); // place -> year -> {sum,n}  (male+female fallback)
+  const add = (map, place, year, v) => {
+    if (!map.has(place)) map.set(place, new Map());
+    const m = map.get(place);
+    const e = m.get(year) || { sum: 0, n: 0 };
+    e.sum += v; e.n += 1; m.set(year, e);
+  };
+
   for (const r of rows) {
     if (r.NumericValue == null) continue;
     const place = r.SpatialDim;
     const year = r.TimeDim;
     if (place == null || year == null) continue;
-    if (isAgg(r)) {
-      if (!agg.has(place)) agg.set(place, new Map());
-      agg.get(place).set(year, r.NumericValue);
-    } else if (isSexSplit(r)) {
-      if (!split.has(place)) split.set(place, new Map());
-      const m = split.get(place);
-      const e = m.get(year) || { sum: 0, n: 0 };
-      e.sum += r.NumericValue; e.n += 1; m.set(year, e);
-    }
+    const s = sexOf(r);
+    if (s == null || s === "SEX_BTSX") add(both, place, year, r.NumericValue);
+    else if (s === "SEX_MLE" || s === "SEX_FMLE") add(split, place, year, r.NumericValue);
   }
-  // merged place -> year -> value
+
   const merged = new Map();
-  for (const [place, ym] of agg) {
-    merged.set(place, new Map(ym));
+  for (const [place, ym] of both) {
+    const d = new Map();
+    for (const [year, { sum, n }] of ym) d.set(year, sum / n);
+    merged.set(place, d);
   }
   for (const [place, ym] of split) {
     if (!merged.has(place)) merged.set(place, new Map());
-    const dst = merged.get(place);
-    for (const [year, { sum, n }] of ym) {
-      if (!dst.has(year)) dst.set(year, sum / n);
-    }
+    const d = merged.get(place);
+    for (const [year, { sum, n }] of ym) if (!d.has(year)) d.set(year, sum / n);
   }
   return merged;
 }

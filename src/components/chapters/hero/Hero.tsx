@@ -66,29 +66,34 @@ export function Hero() {
         ref={contentRef}
         className="relative z-10 flex h-full flex-col items-center justify-center px-6 text-center"
       >
-        <p className="mb-7 text-[11px] uppercase tracking-[0.42em] text-sage">
+        <p
+          className="reveal mb-7 text-[11px] uppercase tracking-[0.42em] text-sage"
+          style={{ animationDelay: "120ms" }}
+        >
           A living atlas of global health
         </p>
         <h1
-          className="font-display text-mist"
-          style={{ fontSize: "var(--text-hero)", lineHeight: 0.92 }}
+          className="reveal font-display text-mist"
+          style={{ fontSize: "var(--text-hero)", lineHeight: 0.92, animationDelay: "260ms" }}
         >
           Pulse
         </h1>
         <p
-          className="font-display mt-7 max-w-[34rem] text-balance italic text-sage"
-          style={{ fontSize: "var(--text-title)" }}
+          className="reveal font-display mt-7 max-w-[34rem] text-balance italic text-sage"
+          style={{ fontSize: "var(--text-title)", animationDelay: "460ms" }}
         >
           The world&rsquo;s health, grown as a garden.
         </p>
 
-        <MomentumReadout
-          change={change}
-          latest={latest}
-          ready={mounted && !!hist.data}
-        />
+        <div className="reveal" style={{ animationDelay: "660ms" }}>
+          <MomentumReadout
+            change={change}
+            latest={latest}
+            ready={mounted && !!hist.data}
+          />
+        </div>
 
-        <div className="mt-14 w-full max-w-4xl">
+        <div className="reveal mt-14 w-full max-w-4xl" style={{ animationDelay: "820ms" }}>
           <LiveFigures />
         </div>
       </div>

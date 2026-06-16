@@ -1,0 +1,43 @@
+name: Refresh data
+
+# Regenerates the committed health-data snapshots every 6 hours and pushes them.
+# Pulse stays a 100% static site at runtime; this CI job is the only thing that
+# fetches the CORS-blocked WHO sources. A push to main triggers a Vercel redeploy.
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-data
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # refresh.mjs uses only Node built-ins (fetch, fs) — no install needed.
+      - name: Refresh snapshots
+        run: node scripts/refresh.mjs
+
+      - name: Commit if changed
+        run: |
+          git config user.name "Jayanth-reflex"
+          git config user.email "jayanthreddy268.jr@gmail.com"
+          git add public/data
+          if git diff --cached --quiet; then
+            echo "No data changes."
+          else
+            git commit -m "data: refresh snapshots ($(date -u +%FT%TZ))"
+            git push
+          fi

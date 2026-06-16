@@ -4,6 +4,7 @@ import "./globals.css";
 import { MotionProvider } from "@/lib/motion/MotionProvider";
 import { SwrProvider } from "@/lib/swr/SwrProvider";
 import { SmoothScroll } from "@/components/system/SmoothScroll";
+import { ChapterChrome } from "@/components/system/ChapterChrome";
 import { Grain } from "@/components/system/Grain";
 
 // Editorial serif display — organic, optical-sized, a touch of warmth.
@@ -62,6 +63,7 @@ export default function RootLayout({
         <MotionProvider>
           <SwrProvider>
             <SmoothScroll />
+            <ChapterChrome />
             {children}
             <Grain />
           </SwrProvider>

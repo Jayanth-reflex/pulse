@@ -39,14 +39,7 @@ export function Seasons() {
     const step = (ts: number) => {
       if (last) {
         const dt = (ts - last) / 1000;
-        setScrub((s) => {
-          const next = s + (span / 7) * dt; // ~7s sweep
-          if (next >= yearMax) {
-            setPlaying(false);
-            return yearMax;
-          }
-          return next;
-        });
+        setScrub((s) => Math.min(yearMax, s + (span / 7) * dt)); // ~7s sweep
       }
       last = ts;
       raf = requestAnimationFrame(step);
@@ -54,6 +47,11 @@ export function Seasons() {
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
   }, [playing, yearMin, yearMax]);
+
+  // Stop autoplay at the end (kept out of the setScrub updater — updaters must be pure).
+  useEffect(() => {
+    if (playing && scrub >= yearMax) setPlaying(false);
+  }, [playing, scrub, yearMax]);
 
   const ready = mounted && !loading;
   const shown = reducedMotion ? yearMax : scrub;

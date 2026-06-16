@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { scaleTime } from "d3-scale";
 import { ChapterIntro } from "@/components/system/ChapterIntro";
+import { useDialog } from "@/lib/a11y/useDialog";
 import { useOutbreaks } from "@/lib/swr/hooks";
 import { useInView } from "@/lib/motion/useInView";
 import { useMounted } from "@/lib/motion/useMounted";
@@ -18,7 +19,12 @@ const PAD = 60;
 export function Blooms() {
   const { data } = useOutbreaks();
   const mounted = useMounted();
-  const { ref, inView } = useInView<HTMLDivElement>({ threshold: 0.15 });
+  // Observe the timeline itself (not the tall section) so the reveal fires
+  // reliably even when the section is taller than the viewport.
+  const { ref, inView } = useInView<HTMLDivElement>({
+    threshold: 0.2,
+    rootMargin: "0px 0px -8% 0px",
+  });
   const [filter, setFilter] = useState<CategoryKey | "all">("all");
   const [selected, setSelected] = useState<Outbreak | null>(null);
 
@@ -48,10 +54,7 @@ export function Blooms() {
   }, [outbreaks]);
 
   return (
-    <section
-      ref={ref}
-      className="chapter relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 py-24"
-    >
+    <section className="chapter relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 py-24">
       <ChapterIntro
         index="IV"
         title="Blooms"
@@ -74,7 +77,7 @@ export function Blooms() {
         ))}
       </div>
 
-      <div className="mt-8 w-full max-w-5xl">
+      <div ref={ref} className="mt-8 w-full max-w-5xl">
         <svg viewBox={`0 0 ${VB_W} ${VB_H}`} className="w-full" role="img" aria-label="Outbreak timeline">
           {/* the vine */}
           <line
@@ -212,21 +215,19 @@ function OutbreakDetail({
   onClose: () => void;
 }) {
   const cat = CATEGORIES[o.category];
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  const dialogRef = useDialog<HTMLDivElement>(onClose);
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center px-6" onClick={onClose}>
       <div className="absolute inset-0 bg-abyss/70 backdrop-blur-sm" aria-hidden />
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={`${o.disease} detail`}
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-lg rounded-2xl border border-line bg-forest/95 p-7"
+        className="relative w-full max-w-lg rounded-2xl border border-line bg-forest/95 p-7 outline-none"
         style={{ boxShadow: "0 30px 80px rgba(0,0,0,0.6)" }}
       >
         <button

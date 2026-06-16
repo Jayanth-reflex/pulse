@@ -156,6 +156,19 @@ export class FlowField {
     this.z += 0.0009 + m * 0.0016;
   }
 
+  // Single rAF loop; `play()` guards against stacking duplicate loops.
+  private loop = () => {
+    if (!this.running) return;
+    this.step();
+    this.raf = requestAnimationFrame(this.loop);
+  };
+
+  private play() {
+    if (this.running) return;
+    this.running = true;
+    this.raf = requestAnimationFrame(this.loop);
+  }
+
   start() {
     if (!this.opts.animate) {
       // Reduced motion: bake a rich still in one synchronous pass.
@@ -163,13 +176,7 @@ export class FlowField {
       for (let i = 0; i < 480; i++) this.step();
       return;
     }
-    this.running = true;
-    const loop = () => {
-      if (!this.running) return;
-      this.step();
-      this.raf = requestAnimationFrame(loop);
-    };
-    this.raf = requestAnimationFrame(loop);
+    this.play();
   }
 
   pause() {
@@ -178,17 +185,7 @@ export class FlowField {
   }
 
   resume() {
-    if (this.opts.animate && !this.running) {
-      this.running = true;
-      this.raf = requestAnimationFrame(() => {
-        const loop = () => {
-          if (!this.running) return;
-          this.step();
-          this.raf = requestAnimationFrame(loop);
-        };
-        loop();
-      });
-    }
+    if (this.opts.animate) this.play();
   }
 
   destroy() {

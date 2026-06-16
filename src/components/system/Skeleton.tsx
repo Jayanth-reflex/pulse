@@ -11,7 +11,7 @@ export function Skeleton({
   return (
     <span
       aria-hidden
-      className={`inline-block animate-pulse rounded-[3px] bg-surface-2 align-middle ${className}`}
+      className={`shimmer inline-block align-middle ${className}`}
       style={{ width, height }}
     />
   );

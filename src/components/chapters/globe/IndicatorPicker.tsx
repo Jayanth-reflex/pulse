@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { CATEGORIES, CATEGORY_LIST, categoryHex } from "@/lib/taxonomy";
+import { useDialog } from "@/lib/a11y/useDialog";
 import { LIVE_COVID_PER_M } from "@/lib/geo/useGlobeIndicator";
 import type { Catalog, CatalogEntry } from "@/lib/catalog/types";
 import type { CategoryKey } from "@/lib/types";
@@ -27,13 +28,7 @@ export function IndicatorPicker({
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<CategoryKey | "all">("all");
   const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    inputRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  const dialogRef = useDialog<HTMLDivElement>(onClose, inputRef);
 
   const entries = useMemo(
     () => [LIVE_COVID_PER_M, ...catalog.indicators],
@@ -58,11 +53,13 @@ export function IndicatorPicker({
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4" onClick={onClose}>
       <div className="absolute inset-0 bg-abyss/75 backdrop-blur-sm" aria-hidden />
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label="Choose an indicator"
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        className="relative flex max-h-[80vh] w-full max-w-2xl flex-col rounded-2xl border border-line bg-forest/95 p-5"
+        className="relative flex max-h-[80vh] w-full max-w-2xl flex-col rounded-2xl border border-line bg-forest/95 p-5 outline-none"
         style={{ boxShadow: "0 30px 80px rgba(0,0,0,0.6)" }}
       >
         <div className="flex items-center justify-between">

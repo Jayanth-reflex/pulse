@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ChapterIntro } from "@/components/system/ChapterIntro";
+import { useDialog } from "@/lib/a11y/useDialog";
 import { Plant } from "./Plant";
 import { Sparkline } from "@/components/data/Sparkline";
 import { SPECIES, CATEGORIES, type Species as Sp } from "@/lib/taxonomy";
@@ -76,12 +77,7 @@ function SpeciesDetail({
   onClose: () => void;
 }) {
   const cat = CATEGORIES[species.category];
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  const dialogRef = useDialog<HTMLDivElement>(onClose);
 
   const improving = species.lowerIsBetter
     ? datum.trendPct < 0
@@ -104,11 +100,13 @@ function SpeciesDetail({
         aria-hidden
       />
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={`${species.name} detail`}
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-lg rounded-2xl border border-line bg-forest/95 p-7"
+        className="relative w-full max-w-lg rounded-2xl border border-line bg-forest/95 p-7 outline-none"
         style={{ boxShadow: "0 30px 80px rgba(0,0,0,0.6)" }}
       >
         <button
