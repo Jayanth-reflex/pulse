@@ -53,6 +53,19 @@ export function rampColor(metric: GlobeMetric, t: number): THREE.Color {
   return tmpA.clone().lerp(tmpB, Math.max(0, Math.min(1, t)));
 }
 
+const _c = new THREE.Color();
+
+/**
+ * Glow colour for normalized value t∈[0,1] in a category's hue: dim at the low
+ * end, pushed past 1.0 (HDR) at the high end so post-processing bloom catches
+ * the hotspots. Use with `toneMapped: false`.
+ */
+export function intensityColor(hex: string, t: number): THREE.Color {
+  const k = Math.max(0, Math.min(1, t));
+  const scale = 0.32 + k * k * 1.7; // ease-in so only true highs blow out
+  return _c.set(hex).multiplyScalar(scale).clone();
+}
+
 /** Percentile clamp so a few outliers don't flatten the colour spread. */
 export function percentileDomain(
   values: number[],

@@ -5,13 +5,23 @@
 
 export type CategoryKey =
   | "respiratory"
-  | "vaccinePreventable"
-  | "vectorBorne"
+  | "communicableOther"
   | "enteric"
+  | "vectorBorne"
   | "hemorrhagic"
-  | "chronic";
+  | "vaccinePreventable"
+  | "chronicNCD"
+  | "riskFactor"
+  | "maternalChild"
+  | "mentalHealth"
+  | "injuries"
+  | "environmental"
+  | "healthSystem";
 
 export type SourceTag = "disease.sh" | "OWID" | "World Bank" | "WHO GHO";
+
+/** Snapshot source slugs used in /public/data/catalog.json + snap files. */
+export type SourceSlug = "who" | "worldbank" | "owid" | "diseasesh";
 
 export interface Category {
   key: CategoryKey;

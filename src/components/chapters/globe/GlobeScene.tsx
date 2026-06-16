@@ -1,11 +1,8 @@
 "use client";
 
-import {
-  Canvas,
-  useThree,
-  type ThreeEvent,
-} from "@react-three/fiber";
-import { OrbitControls, Html } from "@react-three/drei";
+import { Canvas, useThree, type ThreeEvent } from "@react-three/fiber";
+import { OrbitControls, Html, Stars } from "@react-three/drei";
+import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
 import {
   useEffect,
@@ -13,17 +10,20 @@ import {
   useMemo,
   useRef,
   useState,
-  type RefObject,
 } from "react";
 import useSWR from "swr";
 import type { Topology } from "topojson-specification";
 import { buildBorderPositions, latLngToVector3 } from "@/lib/geo/sphere";
-import { useGlobeData, type GlobeMarker } from "@/lib/geo/useGlobeData";
-import { rampColor, type GlobeMetric } from "@/lib/geo/metrics";
-import { useMotion } from "@/lib/motion/MotionProvider";
-import { useCountryHistory } from "@/lib/swr/hooks";
+import {
+  useGlobeIndicator,
+  type GlobeMarker,
+} from "@/lib/geo/useGlobeIndicator";
+import { intensityColor } from "@/lib/geo/metrics";
+import { categoryHex } from "@/lib/taxonomy";
+import { useMotion, type MotionTier } from "@/lib/motion/MotionProvider";
 import { Sparkline } from "@/components/data/Sparkline";
 import { fmtCompact, fmtNum } from "@/lib/format";
+import type { CatalogEntry } from "@/lib/catalog/types";
 
 const R = 1;
 const fetchTopo = (u: string): Promise<Topology> => fetch(u).then((r) => r.json());
@@ -44,7 +44,7 @@ function Borders() {
   if (!geom) return null;
   return (
     <lineSegments geometry={geom}>
-      <lineBasicMaterial color="#356a54" transparent opacity={0.55} />
+      <lineBasicMaterial color="#2a5544" transparent opacity={0.5} toneMapped={false} />
     </lineSegments>
   );
 }
@@ -52,8 +52,8 @@ function Borders() {
 function Planet({ inner }: { inner: React.RefObject<THREE.Mesh | null> }) {
   return (
     <mesh ref={inner}>
-      <sphereGeometry args={[R * 0.995, 64, 64]} />
-      <meshStandardMaterial color="#0b1712" roughness={1} metalness={0} />
+      <sphereGeometry args={[R * 0.992, 64, 64]} />
+      <meshStandardMaterial color="#0a1712" roughness={0.95} metalness={0.05} />
     </mesh>
   );
 }
@@ -67,47 +67,36 @@ function Atmosphere() {
         side: THREE.BackSide,
         depthWrite: false,
         vertexShader: `varying vec3 vN; void main(){ vN = normalize(normalMatrix * normal); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
-        fragmentShader: `varying vec3 vN; void main(){ float i = pow(0.72 - dot(vN, vec3(0.0,0.0,1.0)), 3.0); i = clamp(i,0.0,1.0); gl_FragColor = vec4(0.36,0.84,0.65,1.0) * i; }`,
+        fragmentShader: `varying vec3 vN; void main(){ float i = pow(0.74 - dot(vN, vec3(0.0,0.0,1.0)), 3.0); i = clamp(i,0.0,1.0); gl_FragColor = vec4(0.36,0.84,0.65,1.0) * i; }`,
       }),
     [],
   );
   return (
     <mesh material={mat}>
-      <sphereGeometry args={[R * 1.22, 48, 48]} />
+      <sphereGeometry args={[R * 1.25, 48, 48]} />
     </mesh>
   );
 }
 
 function Markers({
-  metric,
-  onHover,
+  entry,
+  active,
+  onActive,
 }: {
-  metric: GlobeMetric;
-  onHover: (m: GlobeMarker | null) => void;
+  entry: CatalogEntry;
+  active: GlobeMarker | null;
+  onActive: (m: GlobeMarker | null, sticky: boolean) => void;
 }) {
-  const { markers, domain } = useGlobeData(metric);
-  const coreRef = useRef<THREE.InstancedMesh>(null);
-  const haloRef = useRef<THREE.InstancedMesh>(null);
+  const { markers, domain } = useGlobeIndicator(entry);
+  const ref = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
-  const count = markers.length;
-
-  const coreGeo = useMemo(() => new THREE.SphereGeometry(1, 12, 12), []);
-  const coreMat = useMemo(
+  const geo = useMemo(() => new THREE.SphereGeometry(1, 14, 14), []);
+  const mat = useMemo(
     () => new THREE.MeshBasicMaterial({ toneMapped: false }),
     [],
   );
-  const haloGeo = useMemo(() => new THREE.SphereGeometry(1, 10, 10), []);
-  const haloMat = useMemo(
-    () =>
-      new THREE.MeshBasicMaterial({
-        toneMapped: false,
-        transparent: true,
-        opacity: 0.14,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      }),
-    [],
-  );
+  const hex = categoryHex(entry.category);
+  const count = markers.length;
 
   const computed = useMemo(() => {
     const [d0, d1] = domain;
@@ -119,161 +108,191 @@ function Markers({
   }, [markers, domain]);
 
   useLayoutEffect(() => {
-    const core = coreRef.current;
-    const halo = haloRef.current;
-    if (!core || !halo) return;
+    const mesh = ref.current;
+    if (!mesh) return;
     const col = new THREE.Color();
     computed.forEach(({ pos, t }, i) => {
-      const s = 0.011 * (0.55 + t * 1.7);
+      const s = 0.009 * (0.5 + Math.sqrt(t) * 1.5);
       dummy.position.copy(pos);
       dummy.scale.setScalar(s);
       dummy.updateMatrix();
-      core.setMatrixAt(i, dummy.matrix);
-      col.copy(rampColor(metric, t));
-      core.setColorAt(i, col);
-      dummy.scale.setScalar(s * 2.7);
-      dummy.updateMatrix();
-      halo.setMatrixAt(i, dummy.matrix);
-      halo.setColorAt(i, col);
+      mesh.setMatrixAt(i, dummy.matrix);
+      col.copy(intensityColor(hex, t));
+      mesh.setColorAt(i, col);
     });
-    core.instanceMatrix.needsUpdate = true;
-    halo.instanceMatrix.needsUpdate = true;
-    if (core.instanceColor) core.instanceColor.needsUpdate = true;
-    if (halo.instanceColor) halo.instanceColor.needsUpdate = true;
-  }, [computed, metric, dummy, count]);
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  }, [computed, hex, dummy, count]);
 
   if (!count) return null;
 
-  const move = (e: ThreeEvent<PointerEvent>) => {
+  const hover = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
-    if (e.instanceId != null) onHover(markers[e.instanceId] ?? null);
+    if (e.instanceId != null) onActive(markers[e.instanceId] ?? null, false);
+  };
+  const tap = (e: ThreeEvent<MouseEvent>) => {
+    e.stopPropagation();
+    if (e.instanceId != null) onActive(markers[e.instanceId] ?? null, true);
   };
 
   return (
-    <group>
-      <instancedMesh
-        ref={haloRef}
-        args={[haloGeo, haloMat, count]}
-        key={`halo-${count}`}
-      />
-      <instancedMesh
-        ref={coreRef}
-        args={[coreGeo, coreMat, count]}
-        key={`core-${count}`}
-        onPointerMove={move}
-        onPointerOut={() => onHover(null)}
-      />
-    </group>
+    <instancedMesh
+      ref={ref}
+      args={[geo, mat, count]}
+      key={count}
+      onPointerMove={hover}
+      onPointerOut={() => onActive(null, false)}
+      onClick={tap}
+    >
+      {active && <ActiveRing marker={active} hex={hex} />}
+    </instancedMesh>
+  );
+}
+
+function ActiveRing({ marker, hex }: { marker: GlobeMarker; hex: string }) {
+  const pos = useMemo(
+    () => latLngToVector3(marker.lat, marker.long, R * 1.012),
+    [marker],
+  );
+  return (
+    <mesh position={pos}>
+      <ringGeometry args={[0.022, 0.03, 24]} />
+      <meshBasicMaterial color={hex} toneMapped={false} side={THREE.DoubleSide} />
+    </mesh>
   );
 }
 
 function Sprig({
   marker,
-  metric,
+  entry,
+  unit,
+  series,
   occludeRef,
 }: {
   marker: GlobeMarker;
-  metric: GlobeMetric;
+  entry: CatalogEntry;
+  unit: string;
+  series: { year: number; value: number }[];
   occludeRef: React.RefObject<THREE.Mesh | null>;
 }) {
   const out = useMemo(() => {
     const surface = latLngToVector3(marker.lat, marker.long, R * 1.02);
-    return surface.add(surface.clone().normalize().multiplyScalar(0.3));
+    return surface.add(surface.clone().normalize().multiplyScalar(0.32));
   }, [marker]);
-  const hist = useCountryHistory(marker.iso3);
-  const spark = (hist.data ?? []).slice(-60).map((d) => d.value);
-  const accent = rampColor(metric, 0.85).getStyle();
-  const value =
-    metric.key === "lifeExpectancy"
-      ? `${fmtNum(marker.value)}`
-      : metric.key === "under5"
-        ? fmtNum(marker.value)
-        : fmtCompact(marker.value);
+  const occlude = useMemo(() => [occludeRef], [occludeRef]) as never;
+  const hex = categoryHex(entry.category);
+  const big =
+    Math.abs(marker.value) >= 1000 ? fmtCompact(marker.value) : fmtNum(marker.value);
 
   return (
     <Html
       position={out}
       center
-      occlude={
-        occludeRef.current
-          ? [occludeRef as unknown as RefObject<THREE.Object3D>]
-          : undefined
-      }
+      occlude={occlude}
       zIndexRange={[30, 0]}
       style={{ pointerEvents: "none" }}
     >
       <div
         className="w-44 rounded-lg border border-line/80 bg-forest/90 px-3 py-2.5 backdrop-blur-sm"
-        style={{ boxShadow: `0 8px 30px rgba(0,0,0,0.5)` }}
+        style={{ boxShadow: "0 8px 30px rgba(0,0,0,0.5)" }}
       >
         <p className="font-display text-sm text-mist">{marker.name}</p>
         <p className="mt-0.5 flex items-baseline gap-1">
-          <span className="tnum text-xl" style={{ color: accent }}>
-            {value}
+          <span className="tnum text-xl" style={{ color: hex }}>
+            {big}
           </span>
-          <span className="text-[10px] text-faint">{metric.unit}</span>
+          <span className="text-[10px] text-faint">{unit}</span>
         </p>
-        <div className="mt-2">
-          <Sparkline values={spark} color={accent} width={150} height={30} />
-          <p className="mt-1 text-[9px] uppercase tracking-wider text-faint/80">
-            New cases · trailing
-          </p>
-        </div>
+        {series.length > 1 && (
+          <div className="mt-2">
+            <Sparkline
+              values={series.map((s) => s.value)}
+              color={hex}
+              width={150}
+              height={28}
+            />
+            <p className="mt-1 text-[9px] uppercase tracking-wider text-faint/80">
+              World trend
+            </p>
+          </div>
+        )}
         <div className="mt-2 flex justify-between border-t border-line/60 pt-1.5 text-[10px] text-sage">
-          <span>
-            {fmtCompact(marker.cases)} <span className="text-faint">cases</span>
-          </span>
-          <span>
-            {fmtCompact(marker.deaths)} <span className="text-faint">deaths</span>
-          </span>
+          <span>{fmtCompact(marker.cases)} <span className="text-faint">cases</span></span>
+          <span>{fmtCompact(marker.deaths)} <span className="text-faint">deaths</span></span>
         </div>
       </div>
     </Html>
   );
 }
 
-function Scene({ metric }: { metric: GlobeMetric }) {
-  const { reducedMotion } = useMotion();
+function Scene({ entry, tier }: { entry: CatalogEntry; tier: MotionTier }) {
   const [hovered, setHovered] = useState<GlobeMarker | null>(null);
+  const [selected, setSelected] = useState<GlobeMarker | null>(null);
   const planetRef = useRef<THREE.Mesh>(null);
   const { gl } = useThree();
+  const { globalSeries, unit } = useGlobeIndicator(entry);
+  const active = hovered ?? selected;
 
-  // Hover cursor affordance.
   useLayoutEffect(() => {
     gl.domElement.style.cursor = hovered ? "pointer" : "grab";
   }, [hovered, gl]);
 
+  const onActive = (m: GlobeMarker | null, sticky: boolean) => {
+    if (sticky) setSelected(m);
+    else setHovered(m);
+  };
+
   return (
     <>
-      <ambientLight intensity={0.45} />
-      <directionalLight position={[3, 2, 1.5]} intensity={1.15} color="#bfe8d6" />
+      <fog attach="fog" args={["#0a120e", 4.2, 9]} />
+      <ambientLight intensity={0.5} />
+      <directionalLight position={[3, 2, 1.5]} intensity={1.1} color="#bfe8d6" />
+      <Stars radius={60} depth={40} count={1100} factor={3.2} saturation={0} fade speed={0.4} />
       <Atmosphere />
       <Planet inner={planetRef} />
       <Borders />
-      <Markers metric={metric} onHover={setHovered} />
-      {hovered && (
-        <Sprig marker={hovered} metric={metric} occludeRef={planetRef} />
+      <Markers entry={entry} active={active} onActive={onActive} />
+      {active && (
+        <Sprig
+          marker={active}
+          entry={entry}
+          unit={unit}
+          series={globalSeries}
+          occludeRef={planetRef}
+        />
       )}
       <OrbitControls
         enablePan={false}
         enableZoom
-        minDistance={2.1}
+        minDistance={1.8}
         maxDistance={4.2}
         rotateSpeed={0.5}
         enableDamping
         dampingFactor={0.08}
-        autoRotate={!reducedMotion && !hovered}
-        autoRotateSpeed={0.42}
+        autoRotate={!active}
+        autoRotateSpeed={0.4}
       />
+      {tier === "full" && (
+        <EffectComposer>
+          <Bloom
+            intensity={0.85}
+            luminanceThreshold={0.25}
+            luminanceSmoothing={0.35}
+            mipmapBlur
+            radius={0.7}
+          />
+          <Vignette offset={0.22} darkness={0.82} />
+        </EffectComposer>
+      )}
     </>
   );
 }
 
-export default function GlobeScene({ metric }: { metric: GlobeMetric }) {
+export default function GlobeScene({ entry }: { entry: CatalogEntry }) {
   const { tier } = useMotion();
 
-  // Force r3f to (re)measure — if it mounts in a momentarily zero-sized
-  // container (lazy mount, layout settling), its auto-measure can stick at 0.
+  // Force r3f to (re)measure — its auto-measure can stick at 0 if it mounts in
+  // a momentarily zero-sized container (lazy mount / layout settling).
   useEffect(() => {
     const fire = () => window.dispatchEvent(new Event("resize"));
     const ids = [60, 300, 800].map((d) => window.setTimeout(fire, d));
@@ -282,12 +301,12 @@ export default function GlobeScene({ metric }: { metric: GlobeMetric }) {
 
   return (
     <Canvas
-      camera={{ position: [0, 0.4, 3.0], fov: 34 }}
+      camera={{ position: [0, 0.35, 2.9], fov: 34 }}
       dpr={[1, tier === "full" ? 2 : 1.5]}
       gl={{ antialias: true, alpha: true }}
       style={{ background: "transparent" }}
     >
-      <Scene metric={metric} />
+      <Scene entry={entry} tier={tier} />
     </Canvas>
   );
 }

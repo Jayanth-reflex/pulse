@@ -21,11 +21,18 @@
 
   /* — Luminous category accents (mapped to disease families) — */
   --color-jade: #5bd6a6; /* respiratory */
-  --color-amber: #e8b24c; /* vaccine-preventable */
-  --color-orchid: #e0719e; /* vector-borne */
+  --color-teal: #4fcadb; /* communicable */
   --color-sky: #6fb6e8; /* enteric / waterborne */
+  --color-cerulean: #6f8fe8; /* health systems */
+  --color-periwinkle: #8f8ce8; /* mental health */
+  --color-lilac: #b79be0; /* chronic / NCDs */
+  --color-mauve: #cf8fd6; /* risk factors */
+  --color-orchid: #e0719e; /* vector-borne */
+  --color-rose: #e87e93; /* maternal & child */
   --color-ember: #e8745c; /* hemorrhagic / emerging */
-  --color-lilac: #b79be0; /* chronic / noncommunicable */
+  --color-terracotta: #e0935c; /* injuries */
+  --color-amber: #e8b24c; /* vaccine-preventable */
+  --color-moss: #b9d06a; /* environmental */
 
   /* — Type families (wired up in layout.tsx via next/font) — */
   --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;

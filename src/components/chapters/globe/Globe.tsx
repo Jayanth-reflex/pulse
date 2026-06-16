@@ -1,13 +1,21 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
-import { GLOBE_METRICS, rampColor } from "@/lib/geo/metrics";
-import type { GlobeMetric } from "@/lib/geo/metrics";
-import { useGlobeData } from "@/lib/geo/useGlobeData";
-import { useMotion } from "@/lib/motion/MotionProvider";
-import { latLngToVector3 } from "@/lib/geo/sphere";
+import { useEffect, useMemo, useState } from "react";
 import { ChapterIntro } from "@/components/system/ChapterIntro";
+import { IndicatorPicker } from "./IndicatorPicker";
+import { useCatalog } from "@/lib/catalog/hooks";
+import {
+  useGlobeIndicator,
+  LIVE_COVID_PER_M,
+} from "@/lib/geo/useGlobeIndicator";
+import { intensityColor } from "@/lib/geo/metrics";
+import { categoryHex, CATEGORIES } from "@/lib/taxonomy";
+import { latLngToVector3 } from "@/lib/geo/sphere";
+import { useMotion } from "@/lib/motion/MotionProvider";
+import { useMounted } from "@/lib/motion/useMounted";
+import { fmtNum } from "@/lib/format";
+import type { CatalogEntry } from "@/lib/catalog/types";
 
 const GlobeScene = dynamic(() => import("./GlobeScene"), {
   ssr: false,
@@ -28,34 +36,46 @@ function GlobeGlow() {
   );
 }
 
+const DEFAULT_ID = "NCD_BMI_30A"; // obesity — shows the new NCD breadth
+
 export function Globe() {
   const { reducedMotion } = useMotion();
-  const [metric, setMetric] = useState<GlobeMetric>(GLOBE_METRICS[0]);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMounted();
+  const { data: catalog } = useCatalog();
+  const [entry, setEntry] = useState<CatalogEntry | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [webglMounted, setWebglMounted] = useState(false);
 
-  // Defer heavy WebGL init past first paint — mount on idle or first scroll,
-  // whichever comes first. Keeps three.js out of the critical path for Lighthouse
-  // without depending on IntersectionObserver timing.
+  // Pick a striking default once the catalog loads.
+  useEffect(() => {
+    if (entry || !catalog) return;
+    const obesity = catalog.indicators.find((i) => i.id === DEFAULT_ID);
+    setEntry(obesity ?? catalog.indicators[0] ?? LIVE_COVID_PER_M);
+  }, [catalog, entry]);
+
+  // Defer heavy WebGL init past first paint.
   useEffect(() => {
     if (reducedMotion) return;
     let done = false;
-    const mountNow = () => {
+    const go = () => {
       if (done) return;
       done = true;
-      cleanup();
-      setMounted(true);
+      window.removeEventListener("scroll", go);
+      setWebglMounted(true);
     };
-    const cleanup = () => window.removeEventListener("scroll", mountNow);
-    window.addEventListener("scroll", mountNow, { passive: true });
+    window.addEventListener("scroll", go, { passive: true });
     const ric = window as Window & {
       requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
     };
-    const id = ric.requestIdleCallback
-      ? ric.requestIdleCallback(mountNow, { timeout: 1600 })
-      : window.setTimeout(mountNow, 1200);
+    const usedRic = !!ric.requestIdleCallback;
+    const id = usedRic
+      ? ric.requestIdleCallback!(go, { timeout: 1600 })
+      : window.setTimeout(go, 1200);
     return () => {
-      cleanup();
-      window.clearTimeout(id);
+      window.removeEventListener("scroll", go);
+      if (usedRic) ric.cancelIdleCallback?.(id);
+      else window.clearTimeout(id);
     };
   }, [reducedMotion]);
 
@@ -64,106 +84,132 @@ export function Globe() {
       <ChapterIntro
         index="II"
         title="The living globe"
-        lede="Every country breathes by the metric you choose. Hover one to grow its data sprig."
+        lede="Every country breathes by the metric you choose — from obesity to malaria to clean air. Hover or tap a country; pick from 190+ indicators."
       />
 
-      {/* Explicit square box — a WebGL host needs a concretely-sized parent.
-          Sized by viewport WIDTH (never height) so it can't collapse to zero. */}
-      <div className="relative mt-8 h-[min(88vw,560px)] w-[min(88vw,560px)]">
-        {reducedMotion ? (
-          <StaticGlobe metric={metric} />
-        ) : mounted ? (
-          <GlobeScene metric={metric} />
+      {entry && (
+        <button
+          onClick={() => setPickerOpen(true)}
+          className="mt-7 flex items-center gap-3 rounded-full border border-line bg-surface/40 px-5 py-2 text-left transition-colors hover:border-jade/50"
+        >
+          <span
+            className="h-2 w-2 shrink-0 rounded-full"
+            style={{ background: categoryHex(entry.category) }}
+          />
+          <span className="font-display text-base text-mist">{entry.name}</span>
+          <span className="text-xs text-faint">{CATEGORIES[entry.category].label} · change ▾</span>
+        </button>
+      )}
+
+      <div className="relative mt-6 h-[min(88vw,560px)] w-[min(88vw,560px)]">
+        {!entry ? (
+          <GlobeGlow />
+        ) : reducedMotion ? (
+          <StaticGlobe entry={entry} mounted={mounted} />
+        ) : webglMounted ? (
+          <GlobeScene entry={entry} />
         ) : (
           <GlobeGlow />
         )}
       </div>
 
-      <MetricControls metric={metric} onChange={setMetric} />
+      {entry && <Legend entry={entry} />}
+
+      {pickerOpen && catalog && (
+        <IndicatorPicker
+          catalog={catalog}
+          current={entry}
+          onSelect={(e) => {
+            setEntry(e);
+            setPickerOpen(false);
+          }}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
     </section>
   );
 }
 
-function MetricControls({
-  metric,
-  onChange,
-}: {
-  metric: GlobeMetric;
-  onChange: (m: GlobeMetric) => void;
-}) {
+function Legend({ entry }: { entry: CatalogEntry }) {
+  const { markers, loading, error } = useGlobeIndicator(entry);
+  const hex = categoryHex(entry.category);
   return (
-    <div className="mt-8 flex flex-col items-center gap-4">
-      <div className="flex flex-wrap justify-center gap-2">
-        {GLOBE_METRICS.map((m) => {
-          const active = m.key === metric.key;
-          return (
-            <button
-              key={m.key}
-              onClick={() => onChange(m)}
-              aria-pressed={active}
-              className="rounded-full border px-4 py-1.5 text-xs transition-colors duration-300"
-              style={{
-                borderColor: active ? m.highHex : "var(--color-line)",
-                color: active ? "var(--color-mist)" : "var(--color-sage)",
-                background: active
-                  ? "color-mix(in oklab, " + m.highHex + " 14%, transparent)"
-                  : "transparent",
-              }}
-            >
-              {m.label}
-            </button>
-          );
-        })}
+    <div className="mt-7 flex flex-col items-center gap-2 text-[10px] uppercase tracking-wider text-faint">
+      <div className="flex items-center gap-3">
+        <span>lower</span>
+        <span
+          className="h-1.5 w-36 rounded-full"
+          style={{
+            background: `linear-gradient(to right, color-mix(in oklab, ${hex} 28%, #0a120e), ${hex})`,
+          }}
+        />
+        <span>higher</span>
       </div>
-      <Legend metric={metric} />
+      <p className="normal-case tracking-normal text-faint/80">
+        {error
+          ? "couldn't load this metric"
+          : loading
+            ? "loading…"
+            : `${markers.length} countries · ${entry.unit} · ${entry.source === "diseasesh" ? "disease.sh" : entry.source === "who" ? "WHO GHO" : entry.source === "worldbank" ? "World Bank" : "OWID"}`}
+      </p>
     </div>
   );
 }
 
-function Legend({ metric }: { metric: GlobeMetric }) {
-  return (
-    <div className="flex items-center gap-3 text-[10px] uppercase tracking-wider text-faint">
-      <span>{metric.higherIsWorse ? "lower" : "shorter"}</span>
-      <span
-        className="h-1.5 w-32 rounded-full"
-        style={{
-          background: `linear-gradient(to right, ${metric.lowHex}, ${metric.highHex})`,
-        }}
-      />
-      <span>{metric.higherIsWorse ? "higher" : "longer"}</span>
-      <span className="ml-2 normal-case tracking-normal text-faint/70">
-        {metric.source}
-      </span>
-    </div>
-  );
-}
-
-/** Reduced-motion fallback: a still equirectangular plate of the same data. */
-function StaticGlobe({ metric }: { metric: GlobeMetric }) {
-  const { markers, domain } = useGlobeData(metric);
-  const W = 640;
-  const H = 320;
+/** Reduced-motion fallback: a still equirectangular plate (no WebGL). */
+function StaticGlobe({
+  entry,
+  mounted,
+}: {
+  entry: CatalogEntry;
+  mounted: boolean;
+}) {
+  const { markers, domain, loading, error } = useGlobeIndicator(entry);
+  const hex = categoryHex(entry.category);
+  const W = 560;
+  const H = 300;
   const [d0, d1] = domain;
   const span = d1 - d0 || 1;
+
+  const dots = useMemo(
+    () =>
+      markers.map((m) => ({
+        x: ((m.long + 180) / 360) * W,
+        y: ((90 - m.lat) / 180) * H,
+        t: Math.max(0, Math.min(1, (m.value - d0) / span)),
+        iso3: m.iso3,
+      })),
+    [markers, d0, span],
+  );
+
+  if (!mounted || loading) {
+    return (
+      <div className="absolute inset-0 grid place-items-center text-xs text-faint">
+        loading map…
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className="absolute inset-0 grid place-items-center text-xs text-faint">
+        couldn&rsquo;t load this metric
+      </div>
+    );
+  }
   return (
     <div className="absolute inset-0 grid place-items-center">
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="World map of the selected metric">
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={`World map of ${entry.name}`}>
         <rect width={W} height={H} rx={12} fill="#0b1712" />
-        {markers.map((m) => {
-          const x = ((m.long + 180) / 360) * W;
-          const y = ((90 - m.lat) / 180) * H;
-          const t = Math.max(0, Math.min(1, (m.value - d0) / span));
-          return (
-            <circle
-              key={m.iso3}
-              cx={x}
-              cy={y}
-              r={2 + t * 5}
-              fill={rampColor(metric, t).getStyle()}
-              opacity={0.85}
-            />
-          );
-        })}
+        {dots.map((d) => (
+          <circle
+            key={d.iso3}
+            cx={d.x}
+            cy={d.y}
+            r={2 + Math.sqrt(d.t) * 5}
+            fill={intensityColor(hex, d.t).getStyle()}
+            opacity={0.9}
+          />
+        ))}
       </svg>
     </div>
   );
