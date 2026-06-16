@@ -3,6 +3,7 @@ import { Globe } from "@/components/chapters/globe/Globe";
 import { Species } from "@/components/chapters/species/Species";
 import { Blooms } from "@/components/chapters/blooms/Blooms";
 import { Seasons } from "@/components/chapters/seasons/Seasons";
+import { Close } from "@/components/chapters/close/Close";
 
 export default function Home() {
   return (
@@ -12,6 +13,7 @@ export default function Home() {
       <Species />
       <Blooms />
       <Seasons />
+      <Close />
     </main>
   );
 }

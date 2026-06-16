@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Pulse — a living atlas of global health
 
-## Getting Started
+A cinematic, **frontend-only** web experience that renders global disease and
+public-health data as a *living garden*: diseases grow as species, outbreaks open
+as blooms, trends turn with the seasons. Inspired by the scroll-driven, organic
+craft of [Immersive Garden](https://immersive-g.com).
 
-First, run the development server:
+No backend, no database, no API keys. The browser fetches public data directly
+and the whole thing deploys as a static site.
+
+## Chapters
+
+1. **Hero** — a generative flow-field garden whose energy encodes live COVID momentum.
+2. **The living globe** — a 3D globe (three.js) whose countries glow by a chosen metric; hover grows a data sprig.
+3. **The species** — each disease as a procedural growing organism mapped to its live burden and trend.
+4. **Blooms** — recent WHO outbreaks as blossoms on a filterable timeline.
+5. **The seasons** — scrubbable long-arc world trends that grow and recede.
+6. **A quiet close** — methodology, disclaimer, sources, credits.
+
+## Data sources
+
+Three are fetched **live in the browser** (CORS-enabled):
+
+- [disease.sh](https://disease.sh) — COVID totals, history, vaccine coverage
+- [Our World in Data](https://ourworldindata.org) — grapher CSVs (mortality, immunization, life expectancy)
+- [World Bank](https://data.worldbank.org) — health indicators
+
+Two are **CORS-restricted**, so they ship as dated snapshots under
+[`public/data`](public/data) (see [`public/data/README.md`](public/data/README.md)):
+
+- **WHO GHO** — refresh with `node scripts/refresh-who-gho.mjs`
+- **WHO Disease Outbreak News** — curated, refreshed manually
+
+The typed data layer lives in [`src/lib`](src/lib): sources normalize into a small
+internal schema (`Disease`, `Country`, `MetricPoint`, `Outbreak`), fetched via SWR
+with a localStorage-persisted stale-while-revalidate cache.
+
+## Tech
+
+Next.js 16 (App Router, `output: export`) · TypeScript · Tailwind v4 ·
+three.js / @react-three/fiber / drei · Lenis smooth scroll · d3 (scale/shape) ·
+SWR. Motion via CSS + rAF, honouring `prefers-reduced-motion` with full static
+fallbacks and a lighter mobile motion tier. Design tokens in
+[`DESIGN.md`](DESIGN.md).
+
+## Develop
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
+pnpm dev      # http://localhost:3000
+pnpm build    # static export → ./out
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Not medical advice
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Pulse is a data-art piece. Figures can be delayed, cached, or incomplete, and
+outbreak severity is an editorial index — not official case counts. For health
+decisions, consult a qualified professional.
