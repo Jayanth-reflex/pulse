@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Fraunces, Manrope } from "next/font/google";
 import "./globals.css";
 import { MotionProvider } from "@/lib/motion/MotionProvider";
+import { SwrProvider } from "@/lib/swr/SwrProvider";
 import { SmoothScroll } from "@/components/system/SmoothScroll";
 import { Grain } from "@/components/system/Grain";
 
@@ -59,9 +60,11 @@ export default function RootLayout({
     >
       <body className="min-h-full">
         <MotionProvider>
-          <SmoothScroll />
-          {children}
-          <Grain />
+          <SwrProvider>
+            <SmoothScroll />
+            {children}
+            <Grain />
+          </SwrProvider>
         </MotionProvider>
       </body>
     </html>

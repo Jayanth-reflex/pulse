@@ -1,3 +1,5 @@
+import { LiveFigures } from "@/components/data/LiveFigures";
+
 export default function Home() {
   return (
     <main className="relative">
@@ -36,6 +38,9 @@ export default function Home() {
               {label}
             </span>
           ))}
+        </div>
+        <div className="mt-20 w-full max-w-4xl">
+          <LiveFigures />
         </div>
       </section>
     </main>
