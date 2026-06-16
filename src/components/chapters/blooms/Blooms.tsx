@@ -24,7 +24,10 @@ export function Blooms() {
 
   const outbreaks = mounted ? (data?.outbreaks ?? []) : [];
   const categoriesPresent = useMemo(
-    () => [...new Set(outbreaks.map((o) => o.category))] as CategoryKey[],
+    () =>
+      ([...new Set(outbreaks.map((o) => o.category))] as CategoryKey[]).filter(
+        (k) => k in CATEGORIES,
+      ),
     [outbreaks],
   );
 
@@ -84,6 +87,7 @@ export function Blooms() {
           />
           {layout.map(({ o, cx, cy }, i) => {
             const cat = CATEGORIES[o.category];
+            if (!cat) return null;
             const dim = filter !== "all" && filter !== o.category;
             const r = 6 + o.severity * 3.4;
             return (
