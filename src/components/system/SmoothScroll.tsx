@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import Lenis from "lenis";
 import { useMotion } from "@/lib/motion/MotionProvider";
+import { setLenis } from "@/lib/scroll";
 
 /**
  * Lenis-driven smooth scroll for the cinematic chapter flow.
@@ -23,6 +24,7 @@ export function SmoothScroll() {
     });
 
     document.documentElement.classList.add("lenis");
+    setLenis(lenis);
 
     let raf = 0;
     const loop = (time: number) => {
@@ -31,18 +33,10 @@ export function SmoothScroll() {
     };
     raf = requestAnimationFrame(loop);
 
-    // Let other modules drive scroll progress off a single source of truth.
-    const onScroll = () =>
-      window.dispatchEvent(
-        new CustomEvent("pulse:scroll", {
-          detail: { progress: lenis.progress ?? 0 },
-        }),
-      );
-    lenis.on("scroll", onScroll);
-
     return () => {
       cancelAnimationFrame(raf);
       lenis.destroy();
+      setLenis(null);
       document.documentElement.classList.remove("lenis");
     };
   }, [ready, reducedMotion]);

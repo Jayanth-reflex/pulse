@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useMotion } from "@/lib/motion/MotionProvider";
+import { scrollToEl } from "@/lib/scroll";
 
 // Per-chapter accent + label, in page order. The grade tints the whole field
 // so the journey shifts temperature (cool open → warm outbreak tension → cool close).
@@ -54,7 +55,7 @@ export function ChapterChrome() {
 
   const go = (i: number) => {
     const s = document.querySelectorAll<HTMLElement>("section.chapter")[i];
-    s?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" });
+    if (s) scrollToEl(s, reducedMotion);
   };
 
   return (
