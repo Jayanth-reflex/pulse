@@ -8,6 +8,7 @@ import {
 import { WB } from "@/lib/sources/worldBank";
 import { fmtCompact, fmtNum } from "@/lib/format";
 import { Skeleton } from "@/components/system/Skeleton";
+import { useMounted } from "@/lib/motion/useMounted";
 import type { ReactNode } from "react";
 
 function Figure({
@@ -44,47 +45,53 @@ function Figure({
  * disease.sh, the WHO GHO snapshot and the World Bank, with graceful skeletons.
  */
 export function LiveFigures() {
+  const mounted = useMounted();
   const covid = useCovidGlobal();
   const who = useWhoGho();
   const u5 = useWorldBankSeries(WB.under5Mortality);
+
+  // Gate on mount so the first client render matches the data-less static HTML.
+  const covidReady = mounted && !!covid.data;
+  const whoReady = mounted && !!who.data;
+  const u5Ready = mounted && !!u5.data;
 
   return (
     <div className="flex flex-wrap items-end justify-center gap-y-8 divide-line sm:divide-x">
       <Figure
         label="Cumulative COVID cases"
-        value={covid.data ? fmtCompact(covid.data.cases) : "—"}
+        value={covidReady ? fmtCompact(covid.data!.cases) : "—"}
         source="disease.sh"
-        loading={!covid.data}
+        loading={!covidReady}
         accent="var(--color-jade)"
       />
       <Figure
         label="Confirmed deaths"
-        value={covid.data ? fmtCompact(covid.data.deaths) : "—"}
+        value={covidReady ? fmtCompact(covid.data!.deaths) : "—"}
         source="disease.sh"
-        loading={!covid.data}
+        loading={!covidReady}
       />
       <Figure
         label="Countries affected"
-        value={covid.data ? covid.data.affectedCountries : "—"}
+        value={covidReady ? covid.data!.affectedCountries : "—"}
         source="disease.sh"
-        loading={!covid.data}
+        loading={!covidReady}
       />
       <Figure
         label="Life expectancy"
         value={
-          who.data?.lifeExpectancy.global
-            ? `${fmtNum(who.data.lifeExpectancy.global.value)} yr`
+          whoReady && who.data!.lifeExpectancy.global
+            ? `${fmtNum(who.data!.lifeExpectancy.global.value)} yr`
             : "—"
         }
-        source={`WHO GHO · ${who.data?.lifeExpectancy.global?.year ?? ""}`}
-        loading={!who.data}
+        source={`WHO GHO · ${(whoReady && who.data!.lifeExpectancy.global?.year) || ""}`}
+        loading={!whoReady}
         accent="var(--color-lilac)"
       />
       <Figure
         label="Under-5 mortality"
-        value={u5.data?.latest != null ? fmtNum(u5.data.latest) : "—"}
-        source={`World Bank · ${u5.data?.latestYear ?? ""}`}
-        loading={!u5.data}
+        value={u5Ready && u5.data!.latest != null ? fmtNum(u5.data!.latest) : "—"}
+        source={`World Bank · ${(u5Ready && u5.data!.latestYear) || ""}`}
+        loading={!u5Ready}
         accent="var(--color-sky)"
       />
     </div>

@@ -5,6 +5,7 @@ import { GardenCanvas } from "./GardenCanvas";
 import { LiveFigures } from "@/components/data/LiveFigures";
 import { useCovidHistory } from "@/lib/swr/hooks";
 import { useMotion } from "@/lib/motion/MotionProvider";
+import { useMounted } from "@/lib/motion/useMounted";
 import { trendPct, fmtSigned, fmtMonthYear } from "@/lib/format";
 
 // Cool-leaning palette with a few warm sparks; the engine samples per particle.
@@ -15,6 +16,7 @@ const clamp = (n: number, lo: number, hi: number) =>
 
 export function Hero() {
   const { reducedMotion } = useMotion();
+  const mounted = useMounted();
   const hist = useCovidHistory(120);
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -80,7 +82,11 @@ export function Hero() {
           The world&rsquo;s health, grown as a garden.
         </p>
 
-        <MomentumReadout change={change} latest={latest} loading={!hist.data} />
+        <MomentumReadout
+          change={change}
+          latest={latest}
+          ready={mounted && !!hist.data}
+        />
 
         <div className="mt-14 w-full max-w-4xl">
           <LiveFigures />
@@ -95,31 +101,42 @@ export function Hero() {
 function MomentumReadout({
   change,
   latest,
-  loading,
+  ready,
 }: {
   change: number;
   latest?: string;
-  loading: boolean;
+  ready: boolean;
 }) {
+  // Until data is ready (and mounted), render a neutral dot with no value so
+  // the static HTML and first client render match exactly.
   const rising = change >= 0;
-  const color = rising ? "var(--color-ember)" : "var(--color-jade)";
+  const color = !ready
+    ? "var(--color-faint)"
+    : rising
+      ? "var(--color-ember)"
+      : "var(--color-jade)";
   return (
     <p className="mt-8 flex items-center gap-2 text-xs text-faint">
       <span
         aria-hidden
         className="inline-block h-1.5 w-1.5 rounded-full"
-        style={{ background: color, boxShadow: `0 0 10px ${color}` }}
+        style={{
+          background: color,
+          boxShadow: ready ? `0 0 10px ${color}` : "none",
+        }}
       />
       <span className="uppercase tracking-[0.2em]">
         COVID-19 · 30-day momentum
       </span>
-      {!loading && (
-        <span className="tnum" style={{ color }}>
-          {fmtSigned(change)}%
-        </span>
-      )}
-      {latest && (
-        <span className="text-faint/70">to {fmtMonthYear(latest)}</span>
+      {ready && (
+        <>
+          <span className="tnum" style={{ color }}>
+            {fmtSigned(change)}%
+          </span>
+          {latest && (
+            <span className="text-faint/70">to {fmtMonthYear(latest)}</span>
+          )}
+        </>
       )}
     </p>
   );

@@ -137,6 +137,35 @@ body {
   width: 100%;
 }
 
+/* Procedural plant idle motion */
+.sway {
+  transform-origin: center bottom;
+  animation: sway 6s ease-in-out infinite;
+}
+@keyframes sway {
+  0%,
+  100% {
+    transform: rotate(-1.4deg);
+  }
+  50% {
+    transform: rotate(1.4deg);
+  }
+}
+.bloom-core {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: breathe 4.5s ease-in-out infinite;
+}
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.16);
+  }
+}
+
 /* Scroll-cue droplet falling down a hairline */
 @keyframes drip {
   0% {
